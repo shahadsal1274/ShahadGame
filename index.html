@@ -41,9 +41,25 @@ button:hover{transform:scale(1.05);}
 <button id="restartBtn">إعادة تشغيل اللعبة</button>
 <button id="shareLinkBtn">فتح صفحة اللاعبين</button>
 
-<script>
-let stages = JSON.parse(localStorage.getItem("stages")) || [];
-let teams = JSON.parse(localStorage.getItem("teams")) || [];
+<!-- Firebase -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
+import { getFirestore, doc, setDoc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAcJKk9kmCdWOegFIv2EPnPKpUlxu6qgQM",
+  authDomain: "shahadgame-4dcb5.firebaseapp.com",
+  projectId: "shahadgame-4dcb5",
+  storageBucket: "shahadgame-4dcb5.firebasestorage.app",
+  messagingSenderId: "1053224905668",
+  appId: "1:1053224905668:web:a37923d2f1f50bb6ba5291"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+let stages = [];
+let teams = [];
 let colors = ["#4a90e2","#50b3d6","#70c1b3","#95d0b8","#7b68ee"];
 
 const teamCountInput = document.getElementById("teamCount");
@@ -90,7 +106,26 @@ function generateStageFields(){
 }
 stageCountInput.addEventListener("input",generateStageFields);
 
-form.addEventListener("submit",function(e){
+async function renderProgressBoard(){
+  progressBoard.innerHTML = "";
+  const docSnap = await getDoc(doc(db,"gameData","master"));
+  if(docSnap.exists()){
+    const data = docSnap.data();
+    teams = data.teams;
+    stages = data.stages;
+    teams.forEach((team,i)=>{
+      let div = document.createElement("div");
+      div.id = "progress-"+team;
+      div.style.backgroundColor = colors[i%colors.length];
+      let savedStage = data[team]?.stage || 0;
+      let savedTime = data[team]?.time || 0;
+      div.textContent = team + ": المرحلة "+savedStage+" | الوقت "+Math.floor(savedTime/60)+":"+((savedTime%60<10)?"0"+savedTime%60:savedTime%60);
+      progressBoard.appendChild(div);
+    });
+  }
+}
+
+form.addEventListener("submit", async function(e){
   e.preventDefault();
   const numTeams = parseInt(teamCountInput.value);
   const numStages = parseInt(stageCountInput.value);
@@ -119,49 +154,30 @@ form.addEventListener("submit",function(e){
     }
     stages.push(stage);
   }
-  localStorage.setItem("teams",JSON.stringify(teams));
-  localStorage.setItem("stages",JSON.stringify(stages));
-  localStorage.setItem("gameStarted","no");
-  localStorage.setItem("startTime",null);
-  alert("تم حفظ كل المراحل وأسماء الفرق!");
+  // حفظ البيانات في Firebase
+  await setDoc(doc(db,"gameData","master"),{teams,stages,gameStarted:"no"});
+  alert("تم حفظ كل المراحل وأسماء الفرق في Firebase!");
   renderProgressBoard();
 });
 
-function renderProgressBoard(){
-  progressBoard.innerHTML = "";
-  teams.forEach(function(team,i){
-    let div = document.createElement("div");
-    div.id = "progress-"+team;
-    div.style.backgroundColor = colors[i%colors.length];
-    let savedStage = parseInt(localStorage.getItem("stage-"+team)) || 0;
-    let savedTime = parseInt(localStorage.getItem("time-"+team)) || 0;
-    div.textContent = team + ": المرحلة "+savedStage+" | الوقت "+Math.floor(savedTime/60)+":"+((savedTime%60<10)?"0"+savedTime%60:savedTime%60);
-    progressBoard.appendChild(div);
-  });
-}
-
-document.getElementById("startAllBtn").addEventListener("click",function(){
-  localStorage.setItem("gameStarted","yes");
-  localStorage.setItem("startTime",Date.now());
+document.getElementById("startAllBtn").addEventListener("click", async function(){
+  await updateDoc(doc(db,"gameData","master"), { gameStarted:"yes", startTime: Date.now() });
   alert("تم بدء اللعبة لكل الفرق!");
 });
 
 document.getElementById("restartBtn").addEventListener("click",function(){
-  localStorage.clear();
   location.reload();
 });
 
 document.getElementById("shareLinkBtn").addEventListener("click",function(){
-  window.location.href = "player.html";  // يفتح الصفحة مباشرة
+  window.location.href="player.html"; // يفتح الصفحة مباشرة
 });
 
+// تحديث اللوحة كل ثانية
 setInterval(renderProgressBoard,1000);
 generateTeamFields();
 generateStageFields();
 renderProgressBoard();
 </script>
-
 </body>
 </html>
-
-
