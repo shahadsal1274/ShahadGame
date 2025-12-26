@@ -2,40 +2,20 @@
 <html lang="ar">
 <head>
 <meta charset="UTF-8">
-<title>البحث عن الكنز مع شهد</title>
+<title>البحث عن الكنز مع شهد - Master</title>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2&display=swap&subset=arabic" rel="stylesheet">
 <style>
-body{
-  font-family:"Baloo 2", cursive; 
-  background:#eef6ff; 
-  padding:15px; 
-  text-align:center; 
-  overflow-y: scroll;
-}
+body{font-family:"Baloo 2", cursive;background:#eef6ff;padding:15px;text-align:center;overflow-y: scroll;}
 h1,h2{color:#2c4a6e;}
-input,select,button{margin:5px; padding:8px; border-radius:8px; border:none; font-size:16px;}
-button{background:#4a90e2; color:white; cursor:pointer;}
+input,select,button{margin:5px;padding:8px;border-radius:8px;border:none;font-size:16px;}
+button{background:#4a90e2;color:white;cursor:pointer;}
 button:hover{transform:scale(1.05);}
-#progressBoard div{padding:8px; margin:5px; font-weight:bold; color:white; border-radius:5px;}
-
-/* الأزرار فوق الصفحة */
-#gameControls {
-  position: sticky;
-  top: 0;
-  background: #eef6ff;
-  padding: 10px 0;
-  z-index: 1000;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 10px;
-  border-bottom: 2px solid #4a90e2;
-}
+#progressBoard div{padding:8px;margin:5px;font-weight:bold;color:white;border-radius:5px;}
+#gameControls{position:sticky;top:0;background:#eef6ff;padding:10px 0;z-index:1000;display:flex;flex-wrap:wrap;justify-content:center;gap:10px;border-bottom:2px solid #4a90e2;}
 </style>
 </head>
 <body>
 
-<!-- الأزرار فوق الصفحة -->
 <div id="gameControls">
   <button id="startAllBtn">ابدأ اللعب للجميع</button>
   <button id="restartBtn">إعادة تشغيل اللعبة</button>
@@ -57,9 +37,25 @@ button:hover{transform:scale(1.05);}
 <h2>لوحة متابعة الفرق</h2>
 <div id="progressBoard"></div>
 
-<script>
-let stages = JSON.parse(localStorage.getItem("stages")) || [];
-let teams = JSON.parse(localStorage.getItem("teams")) || [];
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
+import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAcJKk9kmCdWOegFIv2EPnPKpUlxu6qQM",
+  authDomain: "shahadgame-4dcb5.firebaseapp.com",
+  databaseURL: "https://shahadgame-4dcb5-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "shahadgame-4dcb5",
+  storageBucket: "shahadgame-4dcb5.appspot.com",
+  messagingSenderId: "1053224905668",
+  appId: "1:1053224905668:web:a37923d2f1f50bb6ba5291"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+let stages = [];
+let teams = [];
 let colors = ["#4a90e2","#50b3d6","#70c1b3","#95d0b8","#7b68ee"];
 
 const teamCountInput = document.getElementById("teamCount");
@@ -69,6 +65,7 @@ const stagesContainer = document.getElementById("stagesContainer");
 const progressBoard = document.getElementById("progressBoard");
 const form = document.getElementById("gameSetupForm");
 
+// Generate fields
 function generateTeamFields(){
   const numTeams = parseInt(teamCountInput.value);
   teamNamesContainer.innerHTML = "";
@@ -111,10 +108,10 @@ form.addEventListener("submit",function(e){
   const numTeams = parseInt(teamCountInput.value);
   const numStages = parseInt(stageCountInput.value);
   teams = [];
+  stages = [];
   for(let t=0; t<numTeams; t++){
     teams.push(document.getElementById("teamName"+t).value);
   }
-  stages = [];
   for(let i=0;i<numStages;i++){
     let stage = {
       question: document.getElementById("q"+i).value,
@@ -135,47 +132,45 @@ form.addEventListener("submit",function(e){
     }
     stages.push(stage);
   }
-  localStorage.setItem("teams",JSON.stringify(teams));
-  localStorage.setItem("stages",JSON.stringify(stages));
-  localStorage.setItem("gameStarted","no");
-  localStorage.setItem("startTime",null);
+  set(ref(db, 'gameData'), { teams, stages, gameStarted:false, startTime:null });
   alert("تم حفظ كل المراحل وأسماء الفرق!");
   renderProgressBoard();
 });
 
+// Render progress
 function renderProgressBoard(){
   progressBoard.innerHTML = "";
   teams.forEach(function(team,i){
     let div = document.createElement("div");
     div.id = "progress-"+team;
     div.style.backgroundColor = colors[i%colors.length];
-    let savedStage = parseInt(localStorage.getItem("stage-"+team)) || 0;
-    let savedTime = parseInt(localStorage.getItem("time-"+team)) || 0;
-    div.textContent = team + ": المرحلة "+savedStage+" | الوقت "+Math.floor(savedTime/60)+":"+((savedTime%60<10)?"0"+savedTime%60:savedTime%60);
+    div.textContent = team + ": المرحلة 0 | الوقت 0:00";
     progressBoard.appendChild(div);
   });
 }
 
+// Start game
 document.getElementById("startAllBtn").addEventListener("click",function(){
-  localStorage.setItem("gameStarted","yes");
-  localStorage.setItem("startTime",Date.now());
+  const startTime = Date.now();
+  set(ref(db, 'gameData/gameStarted'), true);
+  set(ref(db, 'gameData/startTime'), startTime);
   alert("تم بدء اللعبة لكل الفرق!");
 });
 
+// Restart
 document.getElementById("restartBtn").addEventListener("click",function(){
-  localStorage.clear();
   location.reload();
 });
 
+// Open player page
 document.getElementById("shareLinkBtn").addEventListener("click",function(){
-  window.location.href = "player.html";  // يفتح صفحة اللاعبين مباشرة
+  window.location.href="player.html";
 });
 
-setInterval(renderProgressBoard,1000);
 generateTeamFields();
 generateStageFields();
 renderProgressBoard();
-</script>
 
+</script>
 </body>
 </html>
