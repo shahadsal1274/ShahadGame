@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title> البحث عن الكنز مع شهد</title>
+<title>البحث عن الكنز مع شهد</title>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2&display=swap&subset=arabic" rel="stylesheet">
 <style>
 body { font-family:"Baloo 2", cursive; background:#e0f7ff; text-align:center; padding:10px;}
@@ -32,7 +32,7 @@ button:hover{transform:scale(1.05);background:#357ABD;}
   </select>
 </div>
 
-<div id="waitingScreen">⏳ بانتظار بدء اللعب...</div>
+<div id="waitingScreen">⏳ بانتظار بدء اللعب من الماستر...</div>
 
 <div id="countdownScreen">
   <div id="countdown">3</div>
@@ -55,136 +55,139 @@ button:hover{transform:scale(1.05);background:#357ABD;}
 <audio id="wrongSound"><source src="wrong.mp3" type="audio/mpeg"></audio>
 <audio id="winSound"><source src="win.mp3" type="audio/mpeg"></audio>
 
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
-  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js";
+<script>
+let stages = JSON.parse(localStorage.getItem("stages")) || [];
+let teams = JSON.parse(localStorage.getItem("teams")) || [];
+let playerTeam = localStorage.getItem("playerTeam") || "";
+let currentStage = parseInt(localStorage.getItem("stage-" + playerTeam)) || 0;
+let timerInterval = null;
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyAcJKk9kmCdWOegFIv2EPnPKpUlxu6qgQM",
-    authDomain: "shahadgame-4dcb5.firebaseapp.com",
-    databaseURL: "https://shahadgame-4dcb5-default-rtdb.firebaseio.com/",
-    projectId: "shahadgame-4dcb5",
-    storageBucket: "shahadgame-4dcb5.appspot.com",
-    messagingSenderId: "1053224905668",
-    appId: "1:1053224905668:web:a37923d2f1f50bb6ba5291"
-  };
+const teamSelect = document.getElementById("teamSelect");
+const waitingScreen = document.getElementById("waitingScreen");
+const countdownScreen = document.getElementById("countdownScreen");
+const countdownElem = document.getElementById("countdown");
+const gameArea = document.getElementById("gameArea");
+const codeContainer = document.getElementById("codeContainer");
 
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
-
-  let stages = JSON.parse(localStorage.getItem("stages")) || [];
-  let teams = JSON.parse(localStorage.getItem("teams")) || [];
-  let playerTeam = localStorage.getItem("playerTeam") || "";
-  let currentStage = parseInt(localStorage.getItem("stage-" + playerTeam)) || 0;
-  let timerInterval = null;
-
-  const teamSelect = document.getElementById("teamSelect");
-  const waitingScreen = document.getElementById("waitingScreen");
-  const countdownScreen = document.getElementById("countdownScreen");
-  const countdownElem = document.getElementById("countdown");
-  const gameArea = document.getElementById("gameArea");
-  const codeContainer = document.getElementById("codeContainer");
-
-  teams.forEach(team => {
+// عرض اختيار الفريق إذا لم يختار اللاعب بعد
+if(!playerTeam){
+  teams.forEach(team=>{
     const opt = document.createElement("option");
     opt.value = team;
     opt.textContent = team;
     teamSelect.appendChild(opt);
-
-    // استماع Firebase للتحديثات
-    const teamRef = ref(db, 'teams/' + team);
-    onValue(teamRef, snapshot => {
-      const data = snapshot.val();
-      if(data && playerTeam === team && timerInterval){
-        localStorage.setItem("stage-"+team, data.stage);
-        localStorage.setItem("time-"+team, data.time);
-        document.getElementById("timeDisplay").textContent =
-          Math.floor(data.time/60)+":"+(data.time%60<10?"0"+data.time%60:data.time%60);
-        document.getElementById("progressDisplay").textContent="المرحلة "+data.stage;
-      }
-    });
   });
+} else {
+  document.getElementById("teamSelection").style.display="none";
+  document.getElementById("playerTeamName").textContent = playerTeam;
+  if(!gameStarted()) waitingScreen.style.display="block";
+  else startCountdown();
+}
 
-  // اختيار الفريق
-  teamSelect.addEventListener("change",()=>{
-    if(!teamSelect.value) return;
-    playerTeam = teamSelect.value;
-    localStorage.setItem("playerTeam",playerTeam);
-    document.getElementById("playerTeamName").textContent = playerTeam;
-    currentStage = parseInt(localStorage.getItem("stage-" + playerTeam)) || 0;
-    teamSelect.parentElement.style.display = "none";
-    waitingScreen.style.display = "block";
-  });
+// التحقق من بدء اللعبة
+function gameStarted() {
+  return localStorage.getItem("gameStarted")==="yes" && localStorage.getItem("startTime")!==null;
+}
 
-  function gameStarted() {
-    return localStorage.getItem("gameStarted") === "yes" && localStorage.getItem("startTime") !== null;
+// اختيار الفريق
+teamSelect.addEventListener("change",()=>{
+  if(!teamSelect.value) return;
+  playerTeam = teamSelect.value;
+  localStorage.setItem("playerTeam",playerTeam);
+  document.getElementById("playerTeamName").textContent = playerTeam;
+  currentStage = parseInt(localStorage.getItem("stage-" + playerTeam)) || 0;
+  teamSelect.parentElement.style.display = "none";
+  waitingScreen.style.display = "block";
+});
+
+// تحقق تلقائي كل نصف ثانية إذا بدأ الماستر اللعبة
+setInterval(()=>{
+  if(playerTeam && gameStarted() && !timerInterval){
+    waitingScreen.style.display = "none"; startCountdown();
+  }
+},500);
+
+function startCountdown(){
+  countdownScreen.style.display="block";
+  let count=3;
+  countdownElem.textContent=count;
+  const interval=setInterval(()=>{
+    count--;
+    if(count===0){
+      clearInterval(interval);
+      countdownScreen.style.display="none";
+      document.getElementById("startSound").play();
+      startGame();
+    } else countdownElem.textContent=count;
+  },1000);
+}
+
+function startGame(){
+  gameArea.style.display="block";
+  const startTime=parseInt(localStorage.getItem("startTime"));
+  timerInterval=setInterval(()=>{
+    const sec=Math.floor((Date.now()-startTime)/1000);
+    document.getElementById("timeDisplay").textContent=
+      Math.floor(sec/60)+":"+(sec%60<10?"0"+sec:sec%60);
+    localStorage.setItem("time-"+playerTeam,sec);
+    document.getElementById("progressDisplay").textContent="المرحلة "+currentStage;
+  },1000);
+  showStage();
+}
+
+function showStage() {
+  if(currentStage >= stages.length) { 
+    document.getElementById("questionText").textContent = "🎯 تلميح مكان الكنز: " + stages[stages.length-1].hints.easy;
+    document.getElementById("optionsContainer").innerHTML = "";
+    codeContainer.style.display = "none";
+    document.getElementById("hintText").textContent = "";
+    return;
   }
 
-  setInterval(()=>{
-    if(playerTeam && gameStarted() && !timerInterval){
-      waitingScreen.style.display = "none";
-      startCountdown();
-    }
-  },500);
+  const stage = stages[currentStage];
+  document.getElementById("questionText").textContent = stage.question;
+  document.getElementById("hintText").textContent = "";
+  codeContainer.style.display = "none";
+  document.getElementById("codeInput").value = "";
 
-  function startCountdown(){
-    countdownScreen.style.display = "block";
-    let count=3;
-    countdownElem.textContent=count;
-    const interval=setInterval(()=>{
-      count--;
-      if(count===0){
-        clearInterval(interval);
-        countdownScreen.style.display="none";
-        document.getElementById("startSound").play();
-        startGame();
-      } else countdownElem.textContent=count;
-    },1000);
-  }
+  const cont = document.getElementById("optionsContainer");
+  cont.innerHTML = "";
+  stage.options.forEach((opt, i) => {
+    const btn = document.createElement("button");
+    btn.className = "optionBtn";
+    btn.textContent = opt;
+    btn.onclick = () => {
+      document.getElementById("hintText").textContent =
+        (i+1 === stage.answer ? "✔️ " + stage.hints.easy : "❌ " + stage.hints.hard);
+      codeContainer.style.display = "block";
+      if(i+1 === stage.answer) document.getElementById("correctSound").play();
+      else document.getElementById("wrongSound").play();
+    };
+    cont.appendChild(btn);
+  });
+}
 
-  function startGame(){
-    gameArea.style.display="block";
-    const startTime=parseInt(localStorage.getItem("startTime"));
-    timerInterval=setInterval(()=>{
-      const sec=Math.floor((Date.now()-startTime)/1000);
-      document.getElementById("timeDisplay").textContent=
-        Math.floor(sec/60)+":"+(sec%60<10?"0"+sec:sec%60);
-      localStorage.setItem("time-"+playerTeam,sec);
-      document.getElementById("progressDisplay").textContent="المرحلة "+currentStage;
-    },1000);
+document.getElementById("checkCodeBtn").onclick=()=>{
+  const stage=stages[currentStage];
+  const codeInput=document.getElementById("codeInput").value.trim();
+  if(codeInput===stage.codes[playerTeam]){
+    currentStage++;
+    localStorage.setItem("stage-"+playerTeam,currentStage);
     showStage();
-  }
+    if(currentStage>=stages.length) document.getElementById("winSound").play();
+  } else alert("الكود خطأ، حاول مرة ثانية!");
+};
 
-  function showStage() {
-    if(currentStage >= stages.length) { 
-      document.getElementById("questionText").textContent="🎉 انتهت اللعبة!"; 
-      codeContainer.style.display="none";
-      document.getElementById("winSound").play();
-      return;
-    }
-    const stage=stages[currentStage];
-    document.getElementById("questionText").textContent=stage.question;
-    codeContainer.style.display="block";
-    document.getElementById("codeInput").value="";
-  }
-
-  document.getElementById("checkCodeBtn").addEventListener("click",()=>{
-    const codeInput=document.getElementById("codeInput").value.trim();
-    const stage=stages[currentStage];
-    if(codeInput === stage.codes[playerTeam]){
-      currentStage++;
-      const now = Math.floor((Date.now() - parseInt(localStorage.getItem("startTime")))/1000);
-      localStorage.setItem("stage-"+playerTeam,currentStage);
-      localStorage.setItem("time-"+playerTeam,now);
-      set(ref(db,'teams/'+playerTeam),{stage:currentStage,time:now});
-      document.getElementById("correctSound").play();
-      showStage();
-    } else {
-      document.getElementById("wrongSound").play();
-      alert("الكود خاطئ!");
-    }
-  });
+function endGame(){
+  clearInterval(timerInterval);
+  const totalSec=parseInt(localStorage.getItem("time-"+playerTeam))||0;
+  const minutes=Math.floor(totalSec/60);
+  const seconds=totalSec%60;
+  const endDiv=document.createElement("div");
+  endDiv.id="endMessage";
+  endDiv.textContent=`🎉 مبروك! الفريق ${playerTeam} وصل الكنز خلال ${minutes} دقيقة و${seconds} ثانية 🎉`;
+  document.body.appendChild(endDiv);
+}
 </script>
-
 </body>
 </html>
