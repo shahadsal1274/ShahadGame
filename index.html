@@ -151,11 +151,8 @@ document.getElementById("restartBtn").addEventListener("click",function(){
   location.reload();
 });
 
-// زر مشاركة رابط اللعبة مع رابط نسبي
 document.getElementById("shareLinkBtn").addEventListener("click",function(){
-  let link = "player.html";  // رابط نسبي
-  navigator.clipboard.writeText(link);
-  alert("تم نسخ رابط اللعبة: "+link);
+  window.location.href = "player.html";  // يفتح الصفحة مباشرة
 });
 
 setInterval(renderProgressBoard,1000);
@@ -166,3 +163,4 @@ renderProgressBoard();
 
 </body>
 </html>
+
