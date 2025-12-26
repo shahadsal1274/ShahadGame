@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>فعالية شهد: البحث عن الكنز</title>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2&display=swap&subset=arabic" rel="stylesheet">
+<style>
+body { font-family:"Baloo 2", cursive; background:#e0f0ff; text-align:center; padding:10px;}
+h1,h2{color:#2c4a6e;}
+select,button,input{width:90%;max-width:320px;padding:10px;margin:8px auto;border-radius:10px;border:none;font-size:16px;}
+button{background:#4a90e2;color:white;cursor:pointer;transition:0.2s;}
+button:hover{transform:scale(1.05);background:#357ABD;}
+.optionBtn{display:block;margin:10px auto;padding:10px;background:#6fa8dc;color:white;border-radius:8px;transition:0.2s;}
+.optionBtn:hover{background:#5596c3;transform:scale(1.05);}
+#waitingScreen,#countdownScreen,#gameArea{display:none;margin-top:20px;}
+#countdown{font-size:60px;color:#357ABD;margin-top:40px;}
+#hintText{margin-top:10px;font-weight:bold;color:#006400;}
+#progressDisplay{margin-top:10px;font-weight:bold;color:#2c4a6e;}
+#codeContainer{display:none;margin-top:10px;}
+#endMessage{font-size:1.2em;color:#2c4a6e;margin-top:20px;}
+</style>
+</head>
+<body>
+
+<h1>فعالية شهد: مغامرة البحث عن الكنز</h1>
+
+<div id="teamSelection">
+  <h2>اختر فريقك</h2>
+  <select id="teamSelect">
+    <option value="">-- اختر الفريق --</option>
+  </select>
+</div>
+
+<div id="waitingScreen">⏳ بانتظار منظم اللعبة لبدء اللعب...</div>
+
+<div id="countdownScreen">
+  <div id="countdown">3</div>
+</div>
+
+<div id="gameArea">
+  <div>الفريق: <span id="playerTeamName"></span> | الوقت: <span id="timeDisplay">0:00</span></div>
+  <h2 id="questionText"></h2>
+  <div id="optionsContainer"></div>
+  <div id="hintText"></div>
+  <div id="codeContainer">
+    <input type="text" id="codeInput" placeholder="اكتب الكود">
+    <button id="checkCodeBtn">تحقق من الكود</button>
+  </div>
+  <div id="progressDisplay"></div>
+</div>
+
+<audio id="startSound"><source src="start.mp3" type="audio/mpeg"></audio>
+<audio id="correctSound"><source src="correct.mp3" type="audio/mpeg"></audio>
+<audio id="wrongSound"><source src="wrong.mp3" type="audio/mpeg"></audio>
+<audio id="winSound"><source src="win.mp3" type="audio/mpeg"></audio>
+
+<script>
+let stages = JSON.parse(localStorage.getItem("stages")) || [];
+let teams = JSON.parse(localStorage.getItem("teams")) || [];
+let playerTeam = localStorage.getItem("playerTeam") || "";
+let currentStage = parseInt(localStorage.getItem("stage-" + playerTeam)) || 0;
+let timerInterval = null;
+
+const teamSelect = document.getElementById("teamSelect");
+const waitingScreen = document.getElementById("waitingScreen");
+const countdownScreen = document.getElementById("countdownScreen");
+const countdownElem = document.getElementById("countdown");
+const gameArea = document.getElementById("gameArea");
+const codeContainer = document.getElementById("codeContainer");
+
+// إضافة الفرق للقائمة
+teams.forEach(team => {
+  const opt = document.createElement("option");
+  opt.value = team;
+  opt.textContent = team;
+  teamSelect.appendChild(opt);
+});
+
+// إذا موجود فريق سابق، عرض الانتظار مباشرة
+if(playerTeam){
+  teamSelect.parentElement.style.display = "none";
+  document.getElementById("playerTeamName").textContent = playerTeam;
+  if(!gameStarted()) waitingScreen.style.display="block";
+  else startCountdown();
+}
+
+// التحقق من بدء اللعبة
+function gameStarted() {
+  return localStorage.getItem("gameStarted") === "yes" && localStorage.getItem("startTime") !== null;
+}
+
+// اختيار الفريق
+teamSelect.addEventListener("change",()=>{
+  if(!teamSelect.value) return;
+  playerTeam = teamSelect.value;
+  localStorage.setItem("playerTeam",playerTeam);
+  document.getElementById("playerTeamName").textContent = playerTeam;
+  currentStage = parseInt(localStorage.getItem("stage-" + playerTeam)) || 0;
+  teamSelect.parentElement.style.display = "none";
+  waitingScreen.style.display = "block";
+});
+
+// التحقق كل نصف ثانية إذا بدأ الماستر اللعبة
+setInterval(()=>{
+  if(playerTeam && gameStarted() && !timerInterval){
+    waitingScreen.style.display = "none";startCountdown();
+  }
+},500);
+
+function startCountdown(){
+  countdownScreen.style.display = "block";
+  let count=3;
+  countdownElem.textContent=count;
+  const interval=setInterval(()=>{
+    count--;
+    if(count===0){
+      clearInterval(interval);
+      countdownScreen.style.display="none";
+      document.getElementById("startSound").play();
+      startGame();
+    } else countdownElem.textContent=count;
+  },1000);
+}
+
+function startGame(){
+  gameArea.style.display="block";
+  const startTime=parseInt(localStorage.getItem("startTime"));
+  timerInterval=setInterval(()=>{
+    const sec=Math.floor((Date.now()-startTime)/1000);
+    document.getElementById("timeDisplay").textContent=
+      Math.floor(sec/60)+":"+(sec%60<10?"0"+sec:sec%60);
+    localStorage.setItem("time-"+playerTeam,sec);
+    document.getElementById("progressDisplay").textContent="المرحلة "+currentStage;
+  },1000);
+  showStage();
+}
+
+function showStage() {
+  if(currentStage >= stages.length) { 
+    // آخر مرحلة: فقط تلميح مكان الكنز
+    document.getElementById("questionText").textContent = "🎯 تلميح مكان الكنز: " + stages[stages.length-1].hints.easy;
+    document.getElementById("optionsContainer").innerHTML = "";
+    codeContainer.style.display = "none"; // نخفي خانة الكود
+    document.getElementById("hintText").textContent = "";
+    return;
+  }
+
+  const stage = stages[currentStage];
+  document.getElementById("questionText").textContent = stage.question;
+  document.getElementById("hintText").textContent = "";
+  codeContainer.style.display = "none";
+  document.getElementById("codeInput").value = "";
+
+  const cont = document.getElementById("optionsContainer");
+  cont.innerHTML = "";
+  stage.options.forEach((opt, i) => {
+    const btn = document.createElement("button");
+    btn.className = "optionBtn";
+    btn.textContent = opt;
+    btn.onclick = () => {
+      document.getElementById("hintText").textContent =
+        (i+1 === stage.answer ? "✔️ " + stage.hints.easy : "❌ " + stage.hints.hard);
+      codeContainer.style.display = "block";
+      if(i+1 === stage.answer) document.getElementById("correctSound").play();
+      else document.getElementById("wrongSound").play();
+    };
+    cont.appendChild(btn);
+  });
+}
+
+document.getElementById("checkCodeBtn").onclick=()=>{
+  const stage=stages[currentStage];
+  const codeInput=document.getElementById("codeInput").value.trim();
+  if(codeInput===stage.codes[playerTeam]){
+    currentStage++;
+    localStorage.setItem("stage-"+playerTeam,currentStage);
+    showStage();
+    if(currentStage>=stages.length) document.getElementById("winSound").play();
+  } else alert("الكود خطأ، حاول مرة ثانية!");
+};
+
+function endGame(){
+  clearInterval(timerInterval);
+  const totalSec=parseInt(localStorage.getItem("time-"+playerTeam))||0;
+  const minutes=Math.floor(totalSec/60);
+  const seconds=totalSec%60;
+  const endDiv=document.createElement("div");
+  endDiv.id="endMessage";
+  endDiv.textContent=`🎉 مبروك! الفريق ${playerTeam} وصل الكنز خلال ${minutes} دقيقة و${seconds} ثانية 🎉`;
+  document.body.appendChild(endDiv);
+}
+</script>
+</body>
+</html>
