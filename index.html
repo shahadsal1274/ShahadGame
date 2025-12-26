@@ -7,7 +7,7 @@
 <style>
 body{
   font-family:"Baloo 2", cursive; 
-  background:#e6f0ff; 
+  background:#eef6ff; 
   padding:15px; 
   text-align:center; 
   overflow-y: scroll;
@@ -15,14 +15,14 @@ body{
 h1,h2{color:#2c4a6e;}
 input,select,button{margin:5px; padding:8px; border-radius:8px; border:none; font-size:16px;}
 button{background:#4a90e2; color:white; cursor:pointer; transition:0.2s;}
-button:hover{transform:scale(1.05);}
+button:hover{transform:scale(1.05); background:#357ABD;}
 #progressBoard div{padding:8px; margin:5px; font-weight:bold; color:white; border-radius:5px;}
 
 /* الأزرار فوق الصفحة */
 #gameControls {
   position: sticky;
   top: 0;
-  background: #e6f0ff;
+  background: #eef6ff;
   padding: 10px 0;
   z-index: 1000;
   display: flex;
@@ -56,168 +56,124 @@ button:hover{transform:scale(1.05);}
 <h2>لوحة متابعة الفرق</h2>
 <div id="progressBoard"></div>
 
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
-  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-database.js";
+<script>
+let stages = JSON.parse(localStorage.getItem("stages")) || [];
+let teams = JSON.parse(localStorage.getItem("teams")) || [];
+let colors = ["#4a90e2","#50b3d6","#70c1b3","#95d0b8","#7b68ee"];
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyAcJKk9kmCdWOegFIv2EPnPKpUlxu6qgQM",
-    authDomain: "shahadgame-4dcb5.firebaseapp.com",
-    databaseURL: "https://shahadgame-4dcb5-default-rtdb.firebaseio.com/",
-    projectId: "shahadgame-4dcb5",
-    storageBucket: "shahadgame-4dcb5.appspot.com",
-    messagingSenderId: "1053224905668",
-    appId: "1:1053224905668:web:a37923d2f1f50bb6ba5291"
-  };
+const teamCountInput = document.getElementById("teamCount");
+const stageCountInput = document.getElementById("stageCount");
+const teamNamesContainer = document.getElementById("teamNamesContainer");
+const stagesContainer = document.getElementById("stagesContainer");
+const progressBoard = document.getElementById("progressBoard");
+const form = document.getElementById("gameSetupForm");
 
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
+function generateTeamFields(){
+  const numTeams = parseInt(teamCountInput.value);
+  teamNamesContainer.innerHTML = "";
+  for(let t=0; t<numTeams; t++){
+    const input = document.createElement("input");
+    input.type = "text";
+    input.placeholder = "اسم الفريق " + (t+1);
+    input.id = "teamName"+t;
+    input.value = "الفريق " + (t+1);
+    teamNamesContainer.appendChild(input);
+    teamNamesContainer.appendChild(document.createElement("br"));
+  }
+}
+teamCountInput.addEventListener("input",generateTeamFields);
 
-  let stages = JSON.parse(localStorage.getItem("stages")) || [];
-  let teams = JSON.parse(localStorage.getItem("teams")) || [];
-  let colors = ["#4a90e2","#50b3d6","#70c1b3","#95d0b8","#7b68ee"];
-
-  const teamCountInput = document.getElementById("teamCount");
-  const stageCountInput = document.getElementById("stageCount");
-  const teamNamesContainer = document.getElementById("teamNamesContainer");
-  const stagesContainer = document.getElementById("stagesContainer");
-  const progressBoard = document.getElementById("progressBoard");
-  const form = document.getElementById("gameSetupForm");
-
-  function generateTeamFields(){
-    const numTeams = parseInt(teamCountInput.value);
-    teamNamesContainer.innerHTML = "";
+function generateStageFields(){
+  const numStages = parseInt(stageCountInput.value);
+  const numTeams = parseInt(teamCountInput.value) || 2;
+  stagesContainer.innerHTML = "";
+  for(let i=0;i<numStages;i++){
+    let div = document.createElement("div");
+    div.innerHTML = "<h3>المرحلة " + (i+1) + "</h3>" +
+      "<label>السؤال:</label><input type='text' id='q"+i+"' value='سؤال "+(i+1)+"'><br>" +
+      "<label>الخيار 1:</label><input type='text' id='opt1_"+i+"' value='خيار 1'><br>" +
+      "<label>الخيار 2:</label><input type='text' id='opt2_"+i+"' value='خيار 2'><br>" +
+      "<label>الخيار 3:</label><input type='text' id='opt3_"+i+"' value='خيار 3'><br>" +
+      "<label>الإجابة الصحيحة (1-3):</label><input type='number' id='a"+i+"' min='1' max='3' value='1'><br>" +
+      "<label>تلميح سهل:</label><input type='text' id='easy"+i+"' value='تلميح سهل "+(i+1)+"'><br>" +
+      "<label>تلميح صعب:</label><input type='text' id='hard"+i+"' value='تلميح صعب "+(i+1)+"'><br>";
     for(let t=0; t<numTeams; t++){
-      const input = document.createElement("input");
-      input.type = "text";
-      input.placeholder = "اسم الفريق " + (t+1);
-      input.id = "teamName"+t;
-      input.value = "الفريق " + (t+1);
-      teamNamesContainer.appendChild(input);
-      teamNamesContainer.appendChild(document.createElement("br"));
+      div.innerHTML += "<label>كود الفريق "+(t+1)+":</label><input type='text' id='code"+i+"_"+t+"' value='CODE"+i+"_"+t+"'><br>";
     }
+    stagesContainer.appendChild(div);
   }
-  teamCountInput.addEventListener("input",generateTeamFields);
+}
+stageCountInput.addEventListener("input",generateStageFields);
 
-  function generateStageFields(){
-    const numStages = parseInt(stageCountInput.value);
-    const numTeams = parseInt(teamCountInput.value) || 2;
-    stagesContainer.innerHTML = "";
-    for(let i=0;i<numStages;i++){
-      let div = document.createElement("div");
-      div.innerHTML = "<h3>المرحلة " + (i+1) + "</h3>" +
-        "<label>السؤال:</label><input type='text' id='q"+i+"' value='سؤال "+(i+1)+"'><br>" +
-        "<label>الخيار 1:</label><input type='text' id='opt1_"+i+"' value='خيار 1'><br>" +
-        "<label>الخيار 2:</label><input type='text' id='opt2_"+i+"' value='خيار 2'><br>" +
-        "<label>الخيار 3:</label><input type='text' id='opt3_"+i+"' value='خيار 3'><br>" +
-        "<label>الإجابة الصحيحة (1-3):</label><input type='number' id='a"+i+"' min='1' max='3' value='1'><br>" +
-        "<label>تلميح سهل:</label><input type='text' id='easy"+i+"' value='تلميح سهل "+(i+1)+"'><br>" +
-        "<label>تلميح صعب:</label><input type='text' id='hard"+i+"' value='تلميح صعب "+(i+1)+"'><br>";
-      for(let t=0; t<numTeams; t++){
-        div.innerHTML += "<label>كود الفريق "+(t+1)+":</label><input type='text' id='code"+i+"_"+t+"' value='CODE"+i+"_"+t+"'><br>";
-      }
-      stagesContainer.appendChild(div);
-    }
+form.addEventListener("submit",function(e){
+  e.preventDefault();
+  const numTeams = parseInt(teamCountInput.value);
+  const numStages = parseInt(stageCountInput.value);
+  teams = [];
+  for(let t=0; t<numTeams; t++){
+    teams.push(document.getElementById("teamName"+t).value);
   }
-  stageCountInput.addEventListener("input",generateStageFields);
-
-  form.addEventListener("submit",function(e){
-    e.preventDefault();
-    const numTeams = parseInt(teamCountInput.value);
-    const numStages = parseInt(stageCountInput.value);
-    teams = [];
+  stages = [];
+  for(let i=0;i<numStages;i++){
+    let stage = {
+      question: document.getElementById("q"+i).value,
+      options:[
+        document.getElementById("opt1_"+i).value,
+        document.getElementById("opt2_"+i).value,
+        document.getElementById("opt3_"+i).value
+      ],
+      answer: parseInt(document.getElementById("a"+i).value),
+      hints:{
+        easy: document.getElementById("easy"+i).value,
+        hard: document.getElementById("hard"+i).value
+      },
+      codes:{}
+    };
     for(let t=0; t<numTeams; t++){
-      teams.push(document.getElementById("teamName"+t).value);
+      stage.codes[teams[t]] = document.getElementById("code"+i+"_"+t).value;
     }
-    stages = [];
-    for(let i=0;i<numStages;i++){
-      let stage = {
-        question: document.getElementById("q"+i).value,
-        options:[
-          document.getElementById("opt1_"+i).value,
-          document.getElementById("opt2_"+i).value,
-          document.getElementById("opt3_"+i).value
-        ],
-        answer: parseInt(document.getElementById("a"+i).value),
-        hints:{
-          easy: document.getElementById("easy"+i).value,
-          hard: document.getElementById("hard"+i).value
-        },
-        codes:{}
-      };
-      for(let t=0; t<numTeams; t++){
-        stage.codes[teams[t]] = document.getElementById("code"+i+"_"+t).value;
-      }
-      stages.push(stage);
-    }
-    localStorage.setItem("teams",JSON.stringify(teams));
-    localStorage.setItem("stages",JSON.stringify(stages));
-    localStorage.setItem("gameStarted","no");
-    localStorage.setItem("startTime",null);
-    alert("تم حفظ كل المراحل وأسماء الفرق!");
-    renderProgressBoard();
-
-    // إعداد Firebase لكل فريق عند الحفظ
-    teams.forEach(team => {
-      set(ref(db, 'teams/' + team), {
-        stage: 0,
-        time: 0
-      });
-    });
-  });
-
-  function renderProgressBoard(){
-    progressBoard.innerHTML = "";
-    teams.forEach(function(team,i){
-      let div = document.createElement("div");
-      div.id = "progress-"+team;
-      div.style.backgroundColor = colors[i%colors.length];
-      let savedStage = parseInt(localStorage.getItem("stage-"+team)) || 0;
-      let savedTime = parseInt(localStorage.getItem("time-"+team)) || 0;
-      div.textContent = team + ": المرحلة "+savedStage+" | الوقت "+
-        Math.floor(savedTime/60)+":"+(savedTime%60<10?"0"+savedTime%60:savedTime%60);
-      progressBoard.appendChild(div);
-
-      // استماع Firebase لتحديث مباشر
-      const teamRef = ref(db, 'teams/' + team);
-      onValue(teamRef, snapshot => {
-        const data = snapshot.val();
-        if(data){
-          localStorage.setItem("stage-"+team, data.stage);
-          localStorage.setItem("time-"+team, data.time);
-          div.textContent = team + ": المرحلة "+data.stage+" | الوقت "+
-            Math.floor(data.time/60)+":"+(data.time%60<10?"0"+data.time%60:data.time%60);
-        }
-      });
-    });
+    stages.push(stage);
   }
-
-  document.getElementById("startAllBtn").addEventListener("click",function(){
-    const startTime = Date.now();
-    localStorage.setItem("gameStarted","yes");
-    localStorage.setItem("startTime", startTime);
-    alert("تم بدء اللعبة لكل الفرق!");
-
-    teams.forEach(team => {
-      const nowStage = parseInt(localStorage.getItem("stage-"+team)) || 0;
-      const nowTime = parseInt(localStorage.getItem("time-"+team)) || 0;
-      set(ref(db, 'teams/' + team), { stage: nowStage, time: nowTime });
-    });
-  });
-
-  document.getElementById("restartBtn").addEventListener("click",function(){
-    localStorage.clear();
-    location.reload();
-  });
-
-  document.getElementById("shareLinkBtn").addEventListener("click",function(){
-    window.location.href = "player.html";
-  });
-
-  generateTeamFields();
-  generateStageFields();
+  localStorage.setItem("teams",JSON.stringify(teams));
+  localStorage.setItem("stages",JSON.stringify(stages));
+  localStorage.setItem("gameStarted","no");
+  localStorage.setItem("startTime",null);
+  alert("تم حفظ كل المراحل وأسماء الفرق!");
   renderProgressBoard();
-</script>
+});
 
+function renderProgressBoard(){
+  progressBoard.innerHTML = "";
+  teams.forEach(function(team,i){
+    let div = document.createElement("div");
+    div.id = "progress-"+team;
+    div.style.backgroundColor = colors[i%colors.length];
+    let savedStage = parseInt(localStorage.getItem("stage-"+team)) || 0;
+    let savedTime = parseInt(localStorage.getItem("time-"+team)) || 0;
+    div.textContent = team + ": المرحلة "+savedStage+" | الوقت "+Math.floor(savedTime/60)+":"+((savedTime%60<10)?"0"+savedTime%60:savedTime%60);
+    progressBoard.appendChild(div);
+  });
+}
+
+document.getElementById("startAllBtn").addEventListener("click",function(){
+  localStorage.setItem("gameStarted","yes");
+  localStorage.setItem("startTime",Date.now());
+  alert("تم بدء اللعبة لكل الفرق!");
+});
+
+document.getElementById("restartBtn").addEventListener("click",function(){
+  localStorage.clear();
+  location.reload();
+});
+
+document.getElementById("shareLinkBtn").addEventListener("click",function(){
+  window.location.href = "player.html";  // يفتح الصفحة مباشرة
+});
+
+setInterval(renderProgressBoard,1000);
+generateTeamFields();
+generateStageFields();
+renderProgressBoard();
+</script>
 </body>
 </html>
