@@ -10,14 +10,16 @@ body{
   background:#eef6ff; 
   padding:15px; 
   text-align:center; 
-  overflow-y: scroll; /* سكرول للصفحة */
-  max-height: 100vh;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 h1,h2{color:#2c4a6e;}
 input,select,button{margin:5px; padding:8px; border-radius:8px; border:none; font-size:16px;}
 button{background:#4a90e2; color:white; cursor:pointer;}
 button:hover{transform:scale(1.05);}
 #progressBoard div{padding:8px; margin:5px; font-weight:bold; color:white; border-radius:5px;}
+#gameControls{margin-top:20px;}
 </style>
 </head>
 <body>
@@ -37,9 +39,11 @@ button:hover{transform:scale(1.05);}
 <h2>لوحة متابعة الفرق</h2>
 <div id="progressBoard"></div>
 
-<button id="startAllBtn">ابدأ اللعب للجميع</button>
-<button id="restartBtn">إعادة تشغيل اللعبة</button>
-<button id="shareLinkBtn">فتح صفحة اللاعبين</button>
+<div id="gameControls">
+  <button id="startAllBtn">ابدأ اللعب للجميع</button>
+  <button id="restartBtn">إعادة تشغيل اللعبة</button>
+  <button id="shareLinkBtn">فتح صفحة اللاعبين</button>
+</div>
 
 <script>
 let stages = JSON.parse(localStorage.getItem("stages")) || [];
@@ -144,6 +148,7 @@ document.getElementById("startAllBtn").addEventListener("click",function(){
   localStorage.setItem("gameStarted","yes");
   localStorage.setItem("startTime",Date.now());
   alert("تم بدء اللعبة لكل الفرق!");
+  scrollToBottom();
 });
 
 document.getElementById("restartBtn").addEventListener("click",function(){
@@ -152,12 +157,15 @@ document.getElementById("restartBtn").addEventListener("click",function(){
 });
 
 document.getElementById("shareLinkBtn").addEventListener("click",function(){
-  window.location.href = "player.html";  // يفتح الصفحة مباشرة
+  window.location.href = "player.html";
 });
 
-function startGameScroll(){
-  const gameArea=document.getElementById("gameArea");
-  gameArea.scrollIntoView({ behavior: "smooth" });
+// Scroll للأسفل عند ظهور اللعبة
+function scrollToBottom() {
+  window.scrollTo({
+    top: document.body.scrollHeight,
+    behavior: "smooth"
+  });
 }
 
 setInterval(renderProgressBoard,1000);
